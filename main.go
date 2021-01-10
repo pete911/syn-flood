@@ -14,10 +14,14 @@ func init() {
 
 func main() {
 
-	srcIp := GetRandPublicIP()
+	//srcIp := GetRandPublicIP()
+	// 192.168.86.183
+	srcIp := net.ParseIP("192.168.86.183")
+	//srcIp := net.ParseIP("0.0.0.0")
 	// TODO make dst ip and port as args/flags
 	dstIp := net.ParseIP("127.0.0.1")
-	dstPort := 80
+	//dstIp := net.ParseIP("192.168.86.116")
+	dstPort := 8080
 
 	tcpHeaderBytes, err := GetTCPSYNHeaderBytes(srcIp, dstIp, uint16(dstPort))
 	if err != nil {
@@ -28,26 +32,11 @@ func main() {
 	ipv4HeaderBytes, _ := ipv4Header.Marshal()
 
 	data := append(ipv4HeaderBytes[:], tcpHeaderBytes[:]...)
-	SendTo(dstIp, data)
-}
 
-func SendTo(dstIP net.IP, data []byte) {
-
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
+	rawSocket, err := NewRawSocket(dstIp)
 	if err != nil {
-		panic(err)
+		log.Fatalf("new raw socket: %v", err)
 	}
-
-	err = syscall.SetsockoptInt(s, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1)
-	if err != nil {
-		panic(err)
-	}
-
-	var addr syscall.SockaddrInet4
-	copy(addr.Addr[:4], dstIP.To4())
-
-	err = syscall.Sendto(s, data, 0, &addr)
-	if err != nil {
-		log.Fatalf("send to: %v", err)
-	}
+	rawSocket.Send(data)
+	time.Sleep(5 * time.Second)
 }
