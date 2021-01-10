@@ -14,11 +14,12 @@ func NewRawSocket(dstIP net.IP) (RawSocket, error) {
 
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
 	if err != nil {
+		syscall.Close(fd)
 		return RawSocket{}, err
 	}
 
-	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1)
-	if err != nil {
+	if err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
+		syscall.Close(fd)
 		return RawSocket{}, err
 	}
 

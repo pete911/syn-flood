@@ -42,7 +42,7 @@ func GetTCPSYNHeaderBytes(srcIP, dstIP net.IP, dstPort uint16) ([]byte, error) {
 	binary.BigEndian.PutUint32(b[4:8], uint32(seq))     // sequence number
 	binary.BigEndian.PutUint32(b[8:12], 0)              // acknowledgement number
 	copy(b[12:14], offsetAndFlags)                      // offset, reserved and flags
-	binary.BigEndian.PutUint16(b[14:16], 2048)          // window size
+	binary.BigEndian.PutUint16(b[14:16], 65535)         // window size
 	binary.BigEndian.PutUint16(b[18:20], 0)             // urgent pointer
 
 	checksum, err := tcpChecksum(srcIP, dstIP, b)
