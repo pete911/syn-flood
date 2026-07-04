@@ -31,3 +31,7 @@ func NewRawSocket(dstIP net.IP) (RawSocket, error) {
 func (r RawSocket) Send(data []byte) error {
 	return syscall.Sendto(r.fd, data, 0, &r.addr)
 }
+
+func (r RawSocket) Close() error {
+	return syscall.Close(r.fd)
+}
