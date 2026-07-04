@@ -7,7 +7,7 @@ syn-flood -host <destination-ip> -port <destination-port>
 ## manual test
 
 - `go test -tags manual -run TestStartServer -v ./...` - terminal1: start a test server on `127.0.0.1:9999`
-- `./syn-flood -host 127.0.0.1 -port 9999` - terminal2: run syn-flood against it
+- `sudo ./syn-flood -host 127.0.0.1 -port 9999` - terminal2: run syn-flood against it
 
 terminal1 example output
 ```
