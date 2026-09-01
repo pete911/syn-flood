@@ -9,7 +9,7 @@ import (
 
 func TestGetRandPublicIP(t *testing.T) {
 
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		ip := GetRandPublicIP()
 		if len(ip) != 4 {
 			t.Fatalf("expected 4-byte IPv4 address, got %d bytes", len(ip))

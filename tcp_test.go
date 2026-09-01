@@ -8,7 +8,7 @@ import (
 
 func TestGetSrcTCPPort(t *testing.T) {
 
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		port := getSrcTCPPort()
 		if port < 1024 {
 			t.Fatalf("port %d below ephemeral range", port)
